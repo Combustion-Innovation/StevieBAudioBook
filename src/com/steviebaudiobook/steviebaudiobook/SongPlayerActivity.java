@@ -15,11 +15,13 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Typeface;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
@@ -61,6 +63,7 @@ public class SongPlayerActivity extends Activity implements OnCompletionListener
 	
 	public boolean fileExists;
 	public boolean buttonClicked = false;
+	public boolean isDownloading = false;
 	
 	public String[] albumStrings = {"", "", "", "Party Your Body - Album 1988", "In My Eyes - Album 1988", "Love & Emotion - Album 1990", "Healing - Album 1992", "Funky Melody - Album 1994", "Waiting For Your Love - Album 1996", "Right Here Right Now! - Album 1998", "It's So Good - Album 2001", "The Terminator - Album 2009", "The King of Hearts - Album 2014"};
 	public int[] backgrounds = {R.drawable.blurredkidpicture, R.drawable.blurredchapter2, R.drawable.blurredchapter3, R.drawable.blurredpartyyourbodybackground, R.drawable.blurredinmyeyesbackground, R.drawable.blurredlovaeandemotionbackground, R.drawable.blurredhealingbackground, R.drawable.blurredfunkyemotionbackground, R.drawable.blurredwaitingforyourlovebackground, R.drawable.blurredrightherebackground, R.drawable.blurreditsogoodbackground, R.drawable.blurredterminatorbackground, R.drawable.blurredkingofheartsbackground};
@@ -69,6 +72,8 @@ public class SongPlayerActivity extends Activity implements OnCompletionListener
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_song_player);
+		
+		setVolumeControlStream(AudioManager.STREAM_MUSIC);
 		
 		sharedPref = this.getSharedPreferences("stevieb", Context.MODE_PRIVATE);
 		
@@ -225,10 +230,14 @@ public class SongPlayerActivity extends Activity implements OnCompletionListener
 	
 	public void leavePlayer() {
 		
+		if(file.exists()) {
+			progress = trackPlayer.getProgress();
+		}
+		else {
+			progress = 0;
+		}
 		
-		progress = trackPlayer.getProgress();
 		
-		Toast.makeText(this, Long.toString(progress), Toast.LENGTH_LONG).show();
 		chapter.setAudioProgress(progress);
 		SharedPreferences.Editor editor = sharedPref.edit();
 		editor.putLong("ch" + (chapter.getChapterNumber() + 1) + "progress", progress);
@@ -271,7 +280,19 @@ public class SongPlayerActivity extends Activity implements OnCompletionListener
 		
         try {
 			if(copy(file1, file2)) {
+				Log.d("fileExists", Boolean.toString(file2.exists()));
 				file1.delete();
+				editor.putBoolean("ch" + (chapter.getChapterNumber() + 1) + "exists", true);
+		        editor.putLong("ch" + (chapter.getChapterNumber() + 1) + "progress", 0);
+		        editor.commit();
+		        editor = null;
+		        
+		        Toast.makeText(this, "Download Complete", Toast.LENGTH_LONG).show();
+		        isDownloading = false;
+		        fileDownloader.removeProgressDialog();
+			    trackPlayer.playSong();
+			    
+			    playBtn.setBackgroundResource(R.drawable.pause);
 				
 			    
 			}
@@ -280,17 +301,7 @@ public class SongPlayerActivity extends Activity implements OnCompletionListener
 			e.printStackTrace();
 		}
         
-        editor.putBoolean("ch" + (chapter.getChapterNumber() + 1) + "exists", true);
-        editor.putLong("ch" + (chapter.getChapterNumber() + 1) + "progress", 0);
-        editor.commit();
-        editor = null;
         
-        Toast.makeText(this, "Download Complete", Toast.LENGTH_LONG).show();
-        
-        fileDownloader.removeProgressDialog();
-	    trackPlayer.playSong();
-	    
-	    playBtn.setBackgroundResource(R.drawable.pause);
 	}
 	
 	public void setDeleteButton() {
@@ -330,27 +341,29 @@ public class SongPlayerActivity extends Activity implements OnCompletionListener
 			public void onClick(View v) {
 				// TODO Auto-generated method stub
 				if(!buttonClicked) {
-					buttonClicked = true;
-					
-					if(extDir.exists()) {
+					if(!isDownloading) {
+						buttonClicked = true;
 						
+						if(extDir.exists()) {
+							
+							isDownloading = true;
+							makeDownloadManager();
+							
+							
+						}
+						else if(extDir.getFreeSpace() < chapter.getFileSize()) {
+							
+							
+							makeFreeSpaceAlert();
+							
+						}
+						else {
+							makeNoSDAlert();
+						}
 						
-						makeDownloadManager();
-						
+				        buttonClicked = false;
 						
 					}
-					else if(extDir.getFreeSpace() < chapter.getFileSize()) {
-						
-						
-						makeFreeSpaceAlert();
-						
-					}
-					else {
-						makeNoSDAlert();
-					}
-					
-			        buttonClicked = false;
-					
 				}
 			}
 			
@@ -358,7 +371,7 @@ public class SongPlayerActivity extends Activity implements OnCompletionListener
 	}
 	
 	public void makeDownloadManager() {
-		
+		isDownloading = true;
 		fileDownloader = new FileDownloader(this);
 		fileDownloader.setCommunicator(this);
 		fileDownloader.setUrl("http://combustioninnovation.com/steviebmusic.com/audioBookFiles/");
@@ -373,40 +386,42 @@ public class SongPlayerActivity extends Activity implements OnCompletionListener
 	}
 
 	public void makeDialog() {
-		new AlertDialog.Builder(this)
-	  	.setTitle("Download MP3")
-	  	.setMessage("Your MP3 file is missing.\nWould you like to download it now?")
-	  	.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				if(extDir.exists()) {
-					
-					makeDownloadManager();
-					
+		if(!isDownloading) {
+			new AlertDialog.Builder(this)
+		  	.setTitle("Download MP3")
+		  	.setMessage("Your MP3 file is missing.\nWould you like to download it now?")
+		  	.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+	
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					if(extDir.exists()) {
+						
+						makeDownloadManager();
+						
+						
+					}
+					else if(extDir.getFreeSpace() < chapter.getFileSize()) {
+						
+						
+						makeFreeSpaceAlert();
+						
+					}
+					else {
+						makeNoSDAlert();
+					}
+				}
+		  	})
+			.setNegativeButton("No", new DialogInterface.OnClickListener() {
+	
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					// TODO Auto-generated method stub
+					hideLayouts();
 					
 				}
-				else if(extDir.getFreeSpace() < chapter.getFileSize()) {
-					
-					
-					makeFreeSpaceAlert();
-					
-				}
-				else {
-					makeNoSDAlert();
-				}
-			}
-	  	})
-		.setNegativeButton("No", new DialogInterface.OnClickListener() {
-
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				// TODO Auto-generated method stub
-				hideLayouts();
-				
-			}
-	  		
-	  	}).show();
+		  		
+		  	}).show();
+		}
 	}
 	
 	public void makeFreeSpaceAlert() {
@@ -471,7 +486,32 @@ public class SongPlayerActivity extends Activity implements OnCompletionListener
 	    
 	}
 	
-	
+	@Override
+	public boolean dispatchKeyEvent(KeyEvent event) {
+	    int action = event.getAction();
+	    int keyCode = event.getKeyCode();
+	    switch (keyCode) {
+	        case KeyEvent.KEYCODE_VOLUME_UP:
+	            if (action == KeyEvent.ACTION_DOWN) {
+	                //TODO
+	            	AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+	            	trackPlayer.setVolumeBar(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC));
+	            	return super.dispatchKeyEvent(event);
+	            }
+	            return true;
+	        case KeyEvent.KEYCODE_VOLUME_DOWN:
+	            if (action == KeyEvent.ACTION_DOWN) {
+	                //TODO
+	            	AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+	            	trackPlayer.setVolumeBar(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC));
+	            	return super.dispatchKeyEvent(event);
+	            }
+	            return true;
+	        default:
+	            return super.dispatchKeyEvent(event);
+	   }
+	   
+	}
 	
 
 	

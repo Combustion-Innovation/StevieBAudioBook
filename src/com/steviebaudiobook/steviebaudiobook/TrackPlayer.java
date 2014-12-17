@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
 import android.os.AsyncTask;
@@ -14,6 +15,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
@@ -55,6 +57,9 @@ public class TrackPlayer implements OnCompletionListener {
     public boolean isPlaying, isRewind, isFF, isPaused;
     
     public boolean buttonClicked = false;
+    
+    AudioManager audioManager;
+   
 	
     
     /**
@@ -87,10 +92,14 @@ public class TrackPlayer implements OnCompletionListener {
     	
     	mp.setOnCompletionListener(this);
     	
-    	volumeBar.setMax(100);
-    	volumeBar.setProgress(50);
+    	this.audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
     	
-    	mp.setVolume(0.5f, 0.5f);
+    	
+    	
+    	volumeBar.setMax(this.audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+    	volumeBar.setProgress(this.audioManager.getStreamVolume(AudioManager.STREAM_MUSIC));
+    	
+    	mp.setVolume(1f, 1f);
     	
     	this.isPlaying = true;
         setReceiver();
@@ -103,10 +112,13 @@ public class TrackPlayer implements OnCompletionListener {
 					boolean fromUser) {
 				// TODO Auto-generated method stub
 				if(!buttonClicked) {
+					audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, progress, 0);
+					/*
 					buttonClicked = true;
 					float volume = ((float)progress)/100;
 					
 					mp.setVolume(volume, volume);
+					*/
 				}
 				buttonClicked = false;
 				
@@ -248,8 +260,8 @@ public class TrackPlayer implements OnCompletionListener {
     	        // remove message Handler from updating progress bar
     	    	    	    	
     	       mHandler.removeCallbacks(mUpdateTimeTask);
-    	    	long totalDuration = mp.getDuration();
-                long currentDuration = seekBar.getProgress();
+    	    	int totalDuration = mp.getDuration();
+                int currentDuration = seekBar.getProgress();
   
                 // Displaying Total Duration time
                 songTotalDurationLabel.setText(""+utils.milliSecondsToTimer(totalDuration));
@@ -469,11 +481,15 @@ public class TrackPlayer implements OnCompletionListener {
 			public void onProgressChanged(SeekBar seekBar, int progress,
 					boolean fromUser) {
 				// TODO Auto-generated method stub
+				
 				if(!buttonClicked) {
+					/*
 					buttonClicked = true;
 					float volume = ((float)progress)/100;
 					
 					mp.setVolume(volume, volume);
+					*/
+					audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, progress, 0);
 				}
 				buttonClicked = false;
 				
@@ -653,6 +669,10 @@ public class TrackPlayer implements OnCompletionListener {
 		if(btnBackward.isChecked()) {
 			btnBackward.setChecked(false);
 		}
+	}
+	
+	public void setVolumeBar(int progress) {
+		volumeBar.setProgress(progress);
 	}
 	
 	

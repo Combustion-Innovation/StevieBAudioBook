@@ -16,6 +16,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.util.Log;
 
 public class FileDownloader {
 	
@@ -62,6 +63,8 @@ public class FileDownloader {
                         	//Do whatever
                         	
                         	c.close();
+                        	Log.d("file", "downloaded");
+                        	
                         	//removeProgressDialog();
                         	comm.receiverReturn();
                             context.unregisterReceiver(receiver);
@@ -93,10 +96,10 @@ public class FileDownloader {
                         if (DownloadManager.STATUS_SUCCESSFUL == c.getInt(columnIndex)) {
  
                         	//Do whatever
-                        	
+                        	c.close();
                         	comm.receiverReturn();
                         	
-                            c.close();
+                            
                            
                             
                         }
@@ -172,12 +175,23 @@ public class FileDownloader {
 		pd = new ProgressDialog(this.contextmain);
 		pd.setTitle("Please Wait");
 		pd.setMessage("Files Downloading");
+		pd.setCancelable(false);
 		pd.show();
+	}
+	
+	public void changeProgressDialogMessage(String string) {
+		
+		pd.setMessage(string);
+		
 	}
 	
 	public void removeProgressDialog() {
 		pd.dismiss();
         pd = null;
+	}
+	
+	public void unlockProgressDialog() {
+		pd.setCancelable(true);
 	}
 	
 	/*

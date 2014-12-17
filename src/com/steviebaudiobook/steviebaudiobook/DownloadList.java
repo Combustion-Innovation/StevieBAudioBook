@@ -33,6 +33,7 @@ import android.widget.TextView;
 
 public class DownloadList extends Activity implements FileDownloader.Communicator {
 
+	public final long[] filesizes = {46396864, 30004768, 32188672, 30628864, 38884672, 43900768, 35740864, 41500864, 15028768, 24628672, 23668768, 65164672, 24659224};
 	private int totalChapters = 13;
 	
 	
@@ -235,6 +236,7 @@ public class DownloadList extends Activity implements FileDownloader.Communicato
 					fileDownloader.makeProgressDialog();
 					for(int i=0; i<queue.size(); i++) {
 						fileDownloader.init1xManager(queue.get(i));
+						//fileDownloader.setOpenReceiver();
 					}
 					
 				
@@ -334,12 +336,14 @@ public class DownloadList extends Activity implements FileDownloader.Communicato
 	
 	public boolean copyFiles() {
 		
-		final Handler handler = new Handler();
+		Handler handler = new Handler();
+		
 		handler.post(new Runnable() {
 
 			@Override
 			public void run() {
 				// TODO Auto-generated method stub
+				
 				File filepath = new File(Environment.getExternalStorageDirectory() + "/Android/data/com.stevieb.stevieb/files/");
 				if(!filepath.exists()) {
 					filepath.mkdirs();
@@ -361,7 +365,12 @@ public class DownloadList extends Activity implements FileDownloader.Communicato
 				
 			}
 			
+			
+			
+			
 		});
+		
+		
 		return true;
 
 	}
@@ -380,24 +389,30 @@ public class DownloadList extends Activity implements FileDownloader.Communicato
 	@Override
 	public void receiverReturn() {
 		// TODO Auto-generated method stub
-		downloadNum--;
+		
+		Log.d("DownloadNum", Integer.toString(downloadNum));
 		
 		
-		if(copyFiles()) {
-		
-			if(downloadNum == 0) {
-				makeSharedPrefs();
-				fileDownloader.removeReceiver();
-				fileDownloader.removeProgressDialog();
+		if(checkAllDownloads()) {
+			fileDownloader.removeReceiver();
+			fileDownloader.changeProgressDialogMessage("Installing...");
 			
+			if(copyFiles()) {
+			
+				
+				makeSharedPrefs();
+				
+				fileDownloader.removeProgressDialog();
+				
 				Intent intent = new Intent(this, AudioBookActivity.class);
 				startActivity(intent);
+				
 				finish();
-			}
-			else {
 				
 			}
+			
 		}
+		//fileDownloader.removeReceiver();
 	}
 	
 	@SuppressLint("NewApi")
@@ -442,10 +457,25 @@ public class DownloadList extends Activity implements FileDownloader.Communicato
 		
 	}
 	
+	public boolean checkAllDownloads() {
+		String dir = Environment.getExternalStorageDirectory() + "/StevieB/";
+		for(int i=0; i<queue.size(); i++) {
+			File file = new File(dir, queue.get(i));
+			if(!file.exists() || file.length() < filesizes[i]) {
+				return false;
+			}
+			
+		}
+		return true;
+	
+	}
+	
 	public void debug() {
+		/*
 		for(int i=0; i<queue.size(); i++) {
 			Log.d("queue", queue.get(i));
 		}
+		*/
 	}
 	
 	@Override
